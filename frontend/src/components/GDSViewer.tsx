@@ -116,7 +116,8 @@ const GDSViewer: React.FC<GDSViewerProps> = ({ devices, layers, scale, offsetX, 
                 </text>
               )}
             </g>
-          ))}
+          )
+        })}
       </svg>
     </div>
   )
