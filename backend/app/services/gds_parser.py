@@ -310,6 +310,50 @@ class GDSParserService:
 
         return None
 
+    def get_geometry_info(self, file_name: str) -> Dict:
+        """
+        获取GDS文件的几何信息
+
+        Args:
+            file_name: GDS文件名
+
+        Returns:
+            Dict: 几何信息
+        """
+        try:
+            file_path = self.storage_path / file_name
+
+            if not file_path.exists():
+                raise FileNotFoundError(f"文件不存在: {file_name}")
+
+            library = gdstk.Library.read(file_path)
+
+            # 计算全局边界框
+            min_x, max_x, min_y, max_y = 0, 0, 0, 0
+
+            for cell in library.cells:
+                for polygon in cell.polygons:
+                    coords = polygon.tolist()
+                    for coord in coords:
+                        min_x = min(min_x, coord[0])
+                        max_x = max(max_x, coord[0])
+                        min_y = min(min_y, coord[1])
+                        max_y = max(max_y, coord[1])
+
+            return {
+                "min_x": min_x,
+                "max_x": max_x,
+                "min_y": min_y,
+                "max_y": max_y,
+                "width": max_x - min_x,
+                "height": max_y - min_y,
+                "cell_count": len(library.cells)
+            }
+
+        except Exception as e:
+            logger.error(f"获取几何信息失败: {e}")
+            raise
+
     def get_layer_info(self, file_name: str) -> List[GDSLayerInfo]:
         """
         获取GDS文件的图层信息

@@ -97,6 +97,26 @@ async def get_gds_layers(file_name: str):
     return layers
 
 
+@router.get("/geometry/{file_name}")
+async def get_gds_geometry(file_name: str):
+    """
+    获取GDS文件的几何信息
+
+    Args:
+        file_name: GDS文件名
+
+    Returns:
+        dict: 几何信息
+    """
+    try:
+        geometry = gds_parser_service.get_geometry_info(file_name)
+        return geometry
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"文件不存在: {file_name}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"获取几何信息失败: {str(e)}")
+
+
 @router.post("/layer-mapping")
 async def set_layer_mapping(config: GDSLayerMappingConfig):
     """
