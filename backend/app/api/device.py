@@ -8,8 +8,10 @@ from app.schemas.device import (
     VersionListResponse,
     VersionRollbackRequest
 )
+from app.schemas.diff import VersionDiffRequest, VersionDiffResponse
 from app.services.version_manager import version_manager
 from app.services.device_manager import device_manager
+from app.services.diff_service import diff_service
 
 router = APIRouter(prefix="/device", tags=["Device"])
 
@@ -183,3 +185,33 @@ async def delete_version(file_name: str, version_id: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"删除版本失败: {str(e)}")
+
+
+@router.post("/version/diff", response_model=VersionDiffResponse)
+async def compare_versions(request: VersionDiffRequest):
+    """
+    对比两个版本之间的差异
+
+    Args:
+        request: 版本对比请求
+
+    Returns:
+        VersionDiffResponse: 版本对比结果
+    """
+    try:
+        diff_result = diff_service.compare_versions(
+            request.file_name,
+            request.version1_id,
+            request.version2_id
+        )
+
+        if diff_result is None:
+            raise HTTPException(status_code=404, detail="版本不存在或对比失败")
+
+        return diff_result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"版本对比失败: {str(e)}")
+
