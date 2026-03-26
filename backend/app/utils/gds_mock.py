@@ -78,14 +78,6 @@ class Label:
     magnification: float = 1.0
 
 
-# 模拟gdstk模块
-class GDSTKModule:
-    """模拟gdstk模块"""
-    Library = GdsLibrary
-    GdsCell = GdsCell
-    Polygon = Polygon
-    Label = Label
-
-
-# 创建实例作为模块
-gdstk = GDSTKModule()
+# 导出类以兼容 gdstk.Library 等类型注解
+Library = GdsLibrary
+GdsCell = GdsCell
