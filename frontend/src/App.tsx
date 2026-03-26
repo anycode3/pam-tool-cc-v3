@@ -134,7 +134,6 @@ function App() {
   };
 
   // 选择文件
- 。
   const handleFileSelect = (file: GDSFile) => {
     setSelectedFile(file);
     setLayerMapping({
@@ -427,6 +426,7 @@ function App() {
                         style={{ fontFamily: 'monospace' }}
                       >
                         Layer {layer.layer_number}: {layer.layer_name}
+}
                       </text>
                     </g>
                   ))}
