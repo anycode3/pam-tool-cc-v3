@@ -2,11 +2,13 @@ from fastapi import FastAPI
 import uvicorn
 
 from app.api.gds import router as gds_router
+from app.api.device import router as device_router
 
 app = FastAPI(title="PAM Tool API", version="1.0.0")
 
 # 注册路由
 app.include_router(gds_router)
+app.include_router(device_router)
 
 
 @app.get("/")
