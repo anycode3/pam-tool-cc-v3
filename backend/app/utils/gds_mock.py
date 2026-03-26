@@ -2,12 +2,44 @@
 Mock gdstk module for development/testing purposes
 Used when gdstk cannot be installed (e.g., Python 3.6)
 """
+import sys
 from dataclasses import dataclass, field
 from typing import List
 
 
 @dataclass
-class GdsLibrary:
+class Polygon:
+    """Mock polygon"""
+    layer: int
+    datatype: int
+    points: List
+
+    def tolist(self):
+        """Convert points to list"""
+        return self.points
+
+
+@dataclass
+class Label:
+    """Mock label"""
+    text: str
+    origin: List
+    layer: int
+    datatype: int
+    rotation: float = 0.0
+    magnification: float = 1.0
+
+
+@dataclass
+class GdsCell:
+    """Mock cell"""
+    name: str = ""
+    polygons: List = field(default_factory=list)
+    labels: List = field(default_factory=list)
+
+
+@dataclass
+class Library:
     """Mock GDS library"""
     cells: List = field(default_factory=list)
 
@@ -43,47 +75,20 @@ class GdsLibrary:
                 )
             ]
         )
-        return GdsLibrary(cells=[mock_cell])
+        return Library(cells=[mock_cell])
 
 
-@dataclass
-class GdsCell:
-    """Mock cell"""
-    name: str = ""
-    polygons: List = field(default_factory=list)
-    labels: List = field(default_factory=list)
-
-
-@dataclass
-class Polygon:
-    """Mock polygon"""
-    layer: int
-    datatype: int
-    points: List
-
-    def tolist(self):
-        """Convert points to list"""
-        return self.points
-
-
-@dataclass
-class Label:
-    """Mock label"""
-    text: str
-    origin: List
-    layer: int
-    datatype: int
-    rotation: float = 0.0
-    magnification: float = 1.0
-
-
-# 模拟gdstk模块 - 支持类和实例两种导入方式
-class GDSTKModule:
-    Library = GdsLibrary
-    GdsCell = GdsCell
+# 创建模块对象
+class GDSMockModule:
     Polygon = Polygon
     Label = Label
 
+    class Library:
+        @staticmethod
+        def read(filename):
+            return Library.read(filename)
 
-# 同时支持 from app.utils.gds_mock import gdstk
-gdstk = GDSTKModule()
+
+# 注册到 sys.modules
+sys.modules['gdstk'] = GDSMockModule()
+
