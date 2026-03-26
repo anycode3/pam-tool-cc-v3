@@ -34,7 +34,7 @@ class VersionSaveRequest(BaseModel):
 class VersionListResponse(BaseModel):
     """版本列表响应"""
     file_name: str
-    versions: list[VersionInfo]
+    versions: List[VersionInfo]
 
 
 class VersionRollbackRequest(BaseModel):
