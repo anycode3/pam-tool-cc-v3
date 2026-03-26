@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, status
 from pathlib import Path
 from typing import List
 
@@ -10,7 +10,11 @@ from app.services.gds_parser import gds_parser_service
 router = APIRouter(prefix="/gds", tags=["GDS"])
 
 
-@router.post("/upload")
+# 支持的GDS文件后缀
+ALLOWED_EXTENSIONS = {".gds", ".gdsii", ".gdsiii"}
+
+
+@router.post("/upload", status_code=status.HTTP_201_CREATED)
 async def upload_gds_file(file: UploadFile = File(...)):
     """
     上传GDS文件
@@ -22,22 +26,43 @@ async def upload_gds_file(file: UploadFile = File(...)):
         dict: 上传结果
     """
     try:
+        # 验证文件扩展名
+        file_ext = Path(file.filename).suffix.lower()
+        if file_ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"不支持的文件类型: {file_ext}，仅支持 {', '.join(ALLOWED_EXTENSIONS)}"
+            )
+
+        # 读取文件内容
+        content = await file.read()
+
+        # 验证文件大小
+        max_size_bytes = settings.MAX_GDS_SIZE_MB * 1024 * 1024
+        if len(content) > max_size_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"文件大小超过限制: {settings.MAX_GDS_SIZE_MB}MB"
+            )
+
+        # 保存文件
         storage_path = Path(settings.STORAGE_PATH)
         storage_path.mkdir(parents=True, exist_ok=True)
 
         file_path = storage_path / file.filename
 
-        # 保存文件
         with open(file_path, "wb") as buffer:
-            content = await file.read()
             buffer.write(content)
 
         return {
             "success": True,
             "message": f"文件上传成功: {file.filename}",
-            "file_size": len(content)
+            "file_size": len(content),
+            "file_path": str(file_path)
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"文件上传失败: {str(e)}")
 
@@ -84,23 +109,97 @@ async def set_layer_mapping(config: GDSLayerMappingConfig):
         dict: 设置结果
     """
     try:
-        gds_parser_service.set_layer_mapping(
+        success = gds_parser_service.set_layer_mapping(
             config.file_name,
             config.layer_mapping
         )
-        return {
-            "success": True,
-            "message": f"图层映射配置已保存: {config.file_name}",
-            "mapping": {
-                "ME1": config.layer_mapping.me1,
-                "ME2": config.layer_mapping.me2,
-                "TFR": config.layer_mapping.tfr,
-                "GND": config.layer_mapping.gnd,
-                "VA1": config.layer_mapping.va1
+        if success:
+            return {
+                "success": True,
+                "message": f"图层映射配置已保存: {config.file_name}",
+                "mapping": {
+                    "ME1": config.layer_mapping.me1,
+                    "ME2": config.layer_mapping.me2,
+                    "TFR": config.layer_mapping.tfr,
+                    "GND": config.layer_mapping.gnd,
+                    "VA1": config.layer_mapping.va1
+                }
             }
-        }
+        else:
+            raise HTTPException(status_code=500, detail="保存图层映射失败")
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"设置图层映射失败: {str(e)}")
+
+
+@router.get("/layer-mapping/{file_name}")
+async def get_layer_mapping(file_name: str):
+    """
+    获取GDS文件的图层映射配置
+
+    Args:
+        file_name: GDS文件名
+
+    Returns:
+        dict: 图层映射配置
+    """
+    mapping = gds_parser_service.get_layer_mapping(file_name)
+    if mapping is None:
+        raise HTTPException(status_code=404, detail=f"未找到文件 {file_name} 的图层映射配置")
+
+    return {
+        "file_name": file_name,
+        "mapping": {
+            "ME1": mapping.me1,
+            "ME2": mapping.me2,
+            "TFR": mapping.tfr,
+            "GND": mapping.gnd,
+            "VA1": mapping.va1
+        }
+    }
+
+
+@router.delete("/layer-mapping/{file_name}")
+async def delete_layer_mapping(file_name: str):
+    """
+    删除GDS文件的图层映射配置
+
+    Args:
+        file_name: GDS文件名
+
+    Returns:
+        dict: 删除结果
+    """
+    success = gds_parser_service.delete_layer_mapping(file_name)
+    if success:
+        return {
+            "success": True,
+            "message": f"图层映射配置已删除: {file_name}"
+        }
+    else:
+        raise HTTPException(status_code=404, detail=f"未找到文件 {file_name} 的图层映射配置")
+
+
+@router.get("/layer-mapping")
+async def list_all_layer_mappings():
+    """
+    列出所有GDS文件的图层映射配置
+
+    Returns:
+        dict: 所有图层映射
+    """
+    mappings = gds_parser_service.list_all_layer_mappings()
+    result = {}
+    for file_name, mapping in mappings.items():
+        result[file_name] = {
+            "ME1": mapping.me1,
+            "ME2": mapping.me2,
+            "TFR": mapping.tfr,
+            "GND": mapping.gnd,
+            "VA1": mapping.va1
+        }
+    return {"mappings": result}
 
 
 @router.post("/parse-with-mapping", response_model=GDSParseResponse)

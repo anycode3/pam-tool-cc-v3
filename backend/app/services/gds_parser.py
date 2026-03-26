@@ -13,11 +13,9 @@ from app.core.config import settings
 from app.schemas.gds import DeviceInfo, GDSParseResponse, GDSLayerInfo
 from app.schemas.gds_mapping import LayerMapping
 from app.services.device_recognizer import DeviceRecognizer, DeviceCandidate
+from app.services.layer_mapping_storage import LayerMappingStorage
 
 logger = logging.getLogger(__name__)
-
-# 存储图层映射配置（file_name -> LayerMapping）
-layer_mappings: Dict[str, LayerMapping] = {}
 
 
 class GDSParserService:
@@ -26,6 +24,7 @@ class GDSParserService:
     def __init__(self):
         self.storage_path = Path(settings.STORAGE_PATH)
         self.storage_path.mkdir(parents=True, exist_ok=True)
+        self.layer_mapping_storage = LayerMappingStorage(self.storage_path)
 
     def parse_gds_file_with_mapping(
         self,
@@ -124,13 +123,21 @@ class GDSParserService:
                 message=f"解析失败: {str(e)}"
             )
 
-    def set_layer_mapping(self, file_name: str, layer_mapping: LayerMapping):
-        """设置GDS文件的图层映射"""
-        layer_mappings[file_name] = layer_mapping
+    def set_layer_mapping(self, file_name: str, layer_mapping: LayerMapping) -> bool:
+        """设置GDS文件的图层映射（持久化）"""
+        return self.layer_mapping_storage.save(file_name, layer_mapping)
 
     def get_layer_mapping(self, file_name: str) -> Optional[LayerMapping]:
-        """获取GDS文件的图层映射"""
-        return layer_mappings.get(file_name)
+        """获取GDS文件的图层映射（从持久化存储读取）"""
+        return self.layer_mapping_storage.load(file_name)
+
+    def delete_layer_mapping(self, file_name: str) -> bool:
+        """删除GDS文件的图层映射"""
+        return self.layer_mapping_storage.delete(file_name)
+
+    def list_all_layer_mappings(self) -> Dict[str, LayerMapping]:
+        """列出所有图层映射"""
+        return self.layer_mapping_storage.list_all()
 
     def _extract_devices(self, library: gdstk.Library) -> List[DeviceInfo]:
         """

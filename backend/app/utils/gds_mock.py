@@ -14,7 +14,6 @@ class GdsLibrary:
     @staticmethod
     def read(filename):
         """Mock read method"""
-        # 创建一个模拟的cell
         mock_cell = GdsCell(
             name="test_cell",
             polygons=[
@@ -78,6 +77,13 @@ class Label:
     magnification: float = 1.0
 
 
-# 导出类以兼容 gdstk.Library 等类型注解
-Library = GdsLibrary
-GdsCell = GdsCell
+# 模拟gdstk模块 - 支持类和实例两种导入方式
+class GDSTKModule:
+    Library = GdsLibrary
+    GdsCell = GdsCell
+    Polygon = Polygon
+    Label = Label
+
+
+# 同时支持 from app.utils.gds_mock import gdstk
+gdstk = GDSTKModule()

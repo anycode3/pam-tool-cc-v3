@@ -1,5 +1,6 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(git init:*)",
       "Bash(git remote:*)",
@@ -8,7 +9,11 @@
       "Bash(git commit:*)",
       "Bash(git branch:*)",
       "Bash(git push:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(git credential:*)",
+      "Bash(mkdir -p ~/.git)",
+      "Bash(~/.git-credentials)",
+      "Bash(git --version)"
     ]
   }
 }
