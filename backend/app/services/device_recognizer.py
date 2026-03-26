@@ -4,7 +4,11 @@ from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 
 from app.schemas.gds_mapping import LayerMapping, GDSLayerMappingConfig, DeviceValue
-from app.utils.gds_mock import Polygon, Label
+
+try:
+    from gdstk import Polygon, Label
+except ImportError:
+    from app.utils.gds_mock import Polygon, Label
 
 logger = logging.getLogger(__name__)
 

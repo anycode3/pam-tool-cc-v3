@@ -240,43 +240,6 @@ class GDSParserService:
             'max_y': max(y_coords)
         }
 
-    def _extract_devices_old(self, library: gdstk.Library) -> List[DeviceInfo]:
-        """
-        从GDS库中提取设备信息（旧方法，不使用器件识别）
-
-        Args:
-            library: GDS库对象
-
-        Returns:
-            List[DeviceInfo]: 设备信息列表
-        """
-        devices = []
-        """
-        从GDS库中提取设备信息
-
-        Args:
-            library: GDS库对象
-
-        Returns:
-            List[DeviceInfo]: 设备信息列表
-        """
-        devices = []
-
-        for cell in library.cells:
-            # 遍历cell中的所有多边形，假设它们代表设备
-            for polygon in cell.polygons:
-                device_info = self._polygon_to_device(polygon)
-                if device_info:
-                    devices.append(device_info)
-
-            # 遍历cell中的标签
-            for label in cell.labels:
-                device_info = self._label_to_device(label)
-                if device_info:
-                    devices.append(device_info)
-
-        return devices
-
     def _polygon_to_device(self, polygon: gdstk.Polygon) -> DeviceInfo:
         """
         将多边形转换为设备信息
