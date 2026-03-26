@@ -426,7 +426,6 @@ function App() {
                         style={{ fontFamily: 'monospace' }}
                       >
                         Layer {layer.layer_number}: {layer.layer_name}
-}
                       </text>
                     </g>
                   ))}
