@@ -55,7 +55,7 @@ class GDSParserService:
                 )
 
             # 使用gdstk读取GDS文件
-            library = gdstk.GdsLibrary.read(file_path)
+            library = gdstk.Library.read(file_path)
 
             # 使用图层映射提取设备信息
             devices = self.extract_devices_with_mapping(library, layer_mapping)
@@ -101,7 +101,7 @@ class GDSParserService:
                 )
 
             # 使用gdstk读取GDS文件
-            library = gdstk.GdsLibrary.read(file_path)
+            library = gdstk.Library.read(file_path)
 
             # 提取设备信息
             devices = self._extract_devices(library)
@@ -132,7 +132,7 @@ class GDSParserService:
         """获取GDS文件的图层映射"""
         return layer_mappings.get(file_name)
 
-    def _extract_devices(self, library: gdstk.GdsLibrary) -> List[DeviceInfo]:
+    def _extract_devices(self, library: gdstk.Library) -> List[DeviceInfo]:
         """
         从GDS库中提取设备信息
         如果设置了图层映射，则使用DeviceRecognizer进行器件识别
@@ -172,7 +172,7 @@ class GDSParserService:
 
     def extract_devices_with_mapping(
         self,
-        library: gdstk.GdsLibrary,
+        library: gdstk.Library,
         layer_mapping: LayerMapping
     ) -> List[DeviceInfo]:
         """
@@ -240,7 +240,7 @@ class GDSParserService:
             'max_y': max(y_coords)
         }
 
-    def _extract_devices_old(self, library: gdstk.GdsLibrary) -> List[DeviceInfo]:
+    def _extract_devices_old(self, library: gdstk.Library) -> List[DeviceInfo]:
         """
         从GDS库中提取设备信息（旧方法，不使用器件识别）
 
@@ -356,7 +356,7 @@ class GDSParserService:
             if not file_path.exists():
                 return []
 
-            library = gdstk.GdsLibrary.read(file_path)
+            library = gdstk.Library.read(file_path)
             layer_info_dict: Dict[int, GDSLayerInfo] = {}
 
             for cell in library.cells:

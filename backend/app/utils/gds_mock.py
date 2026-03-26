@@ -81,7 +81,7 @@ class Label:
 # 模拟gdstk模块
 class GDSTKModule:
     """模拟gdstk模块"""
-    GdsLibrary = GdsLibrary
+    Library = GdsLibrary
     GdsCell = GdsCell
     Polygon = Polygon
     Label = Label
