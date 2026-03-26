@@ -38,17 +38,39 @@ function App() {
 
   const handleFileUpload = async (file: File) => {
     try {
+      // 1. 上传文件
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:8000/gds/upload', {
+      const uploadResponse = await fetch('http://localhost:8000/gds/upload', {
         method: 'POST',
         body: formData
       });
 
-      const result = await response.json();
+      if (!uploadResponse.ok) {
+        const error = await uploadResponse.json();
+        throw new Error(error.detail || '上传失败');
+      }
 
-      // 获取图层信息
+      const uploadResult = await uploadResponse.json();
+      console.log('上传成功:', uploadResult);
+
+      // 2. 解析文件获取器件
+      const parseResponse = await fetch('http://localhost:8000/gds/parse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_name: file.name })
+      });
+
+      if (!parseResponse.ok) {
+        const error = await parseResponse.json();
+        throw new Error(error.detail || '解析失败');
+      }
+
+      const parseResult = await parseResponse.json();
+      console.log('解析成功:', parseResult);
+
+      // 3. 获取图层信息
       const layersResponse = await fetch(`http://localhost:8000/gds/layers/${file.name}`);
       const layers = await layersResponse.json();
 
@@ -56,8 +78,8 @@ function App() {
         id: Date.now().toString(),
         name: file.name,
         uploadTime: new Date().toLocaleString(),
-        deviceCount: result.devices?.length || 0,
-        devices: result.devices || [],
+        deviceCount: parseResult.devices?.length || 0,
+        devices: parseResult.devices || [],
         layers: layers || []
       };
 
@@ -65,7 +87,7 @@ function App() {
       setSelectedFile(fileData);
     } catch (error) {
       console.error('上传失败:', error);
-      alert('文件上传失败，请检查后端服务是否启动');
+      alert(`文件处理失败: ${error instanceof Error ? error.message : '未知错误'}`);
     }
   };
 
