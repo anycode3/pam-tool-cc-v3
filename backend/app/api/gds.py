@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 from pathlib import Path
+from typing import List
 
 from app.core.config import settings
 from app.schemas.gds import GDSParseRequest, GDSParseResponse, GDSLayerInfo
@@ -56,7 +57,7 @@ async def parse_gds(request: GDSParseRequest):
     return result
 
 
-@router.get("/layers/{file_name}", response_model=list[GDSLayerInfo])
+@router.get("/layers/{file_name}", response_model=List[GDSLayerInfo])
 async def get_gds_layers(file_name: str):
     """
     获取GDS文件的图层信息
