@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import './App.css';
 
 interface PolygonData {
@@ -75,9 +75,15 @@ function App() {
     scale: 1,
     offsetX: 0,
     offsetY: 0,
+  });
+
+  // 拖拽平滑处理（使用ref避免闭包问题）
+  const dragRef = React.useRef({
     isDragging: false,
-    lastX: 0,
-    lastY: 0
+    startX: 0,
+    startY: 0,
+    currentOffsetX: 0,
+    currentOffsetY: 0
   });
 
   // 图层过滤
@@ -375,28 +381,52 @@ function App() {
     setViewState({ ...viewState, scale: newScale });
   };
 
+  // 重置视图
+  const handleResetView = () => {
+    setViewState({ scale: 1, offsetX: 0, offsetY: 0 });
+    dragRef.current = { isDragging: false, startX: 0, startY: 0, currentOffsetX: 0, currentOffsetY: 0 };
+  };
+
   // 处理拖拽开始
   const handleMouseDown = (e: React.MouseEvent) => {
-    setViewState({ ...viewState, isDragging: true, lastX: e.clientX, lastY: e.clientY });
+    dragRef.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      currentOffsetX: viewState.offsetX,
+      currentOffsetY: viewState.offsetY
+    };
   };
 
   // 处理拖拽移动
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!viewState.isDragging) return;
-    const dx = e.clientX - viewState.lastX;
-    const dy = e.clientY - viewState.lastY;
+    if (!dragRef.current.isDragging) return;
+
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+
+    // 使用移动速度系数（0.3）使拖拽更平滑
+    const smoothFactor = 0.3;
+    const newOffsetX = dragRef.current.currentOffsetX + dx * smoothFactor;
+    const newOffsetY = dragRef.current.currentOffsetY + dy * smoothFactor;
+
     setViewState({
       ...viewState,
-      offsetX: viewState.offsetX + dx,
-      offsetY: viewState.offsetY + dy,
-      lastX: e.clientX,
-      lastY: e.clientY
+      offsetX: newOffsetX,
+      offsetY: newOffsetY
     });
   };
 
   // 处理拖拽结束
   const handleMouseUp = () => {
-    setViewState({ ...viewState, isDragging: false });
+    dragRef.current = { isDragging: false, startX: 0, startY: 0, currentOffsetX: 0, currentOffsetY: 0 };
+  };
+
+  // 鼠标离开也结束拖拽
+  const handleMouseLeave = () => {
+    if (dragRef.current.isDragging) {
+      dragRef.current = { isDragging: false, startX: 0, startY: 0, currentOffsetX: 0, currentOffsetY: 0 };
+    }
   };
 
   // 切换图层可见性
@@ -528,7 +558,7 @@ function App() {
                     </button>
                     <button
                       className="toolbar-btn"
-                      onClick={() => setViewState({ ...viewState, scale: 1, offsetX: 0, offsetY: 0 })}
+                      onClick={handleResetView}
                       title="重置视图"
                     >
                       ⤢
@@ -544,12 +574,12 @@ function App() {
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
+                  onMouseLeave={handleMouseLeave}
                   style={{
                     background: '#0f172a',
                     border: '1px solid #334155',
                     borderRadius: '8px',
-                    cursor: viewState.isDragging ? 'grabbing' : 'grab'
+                    cursor: dragRef.current.isDragging ? 'grabbing' : 'grab'
                   }}
                 >
                   <g
