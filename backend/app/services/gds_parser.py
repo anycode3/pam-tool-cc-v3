@@ -7,7 +7,7 @@ import gdstk
 
 from app.core.config import settings
 from app.schemas.gds import DeviceInfo, GDSParseResponse, GDSLayerInfo, PolygonData
-from app.schemas.gds_mapping import LayerMapping
+from app.schemas.gds_mapping import LayerMapping, GDSLayerMappingConfig, InductorRecognitionMethod
 from app.services.device_recognizer import DeviceRecognizer, DeviceCandidate
 from app.services.layer_mapping_storage import LayerMappingStorage
 
@@ -176,7 +176,8 @@ class GDSParserService:
     def extract_devices_with_mapping(
         self,
         library: gdstk.Library,
-        layer_mapping: LayerMapping
+        layer_mapping: LayerMapping,
+        inductor_method: Optional[InductorRecognitionMethod] = None
     ) -> List[DeviceInfo]:
         """
         使用图层映射识别器件
@@ -184,6 +185,7 @@ class GDSParserService:
         Args:
             library: GDS库对象
             layer_mapping: 图层映射配置
+            inductor_method: 电感识别方法（可选）
 
         Returns:
             List[DeviceInfo]: 设备信息列表
@@ -197,8 +199,11 @@ class GDSParserService:
             polygons.extend(cell.polygons)
             labels.extend(cell.labels)
 
-        # 使用器件识别器
-        recognizer = DeviceRecognizer(layer_mapping)
+        # 使用器件识别器，传入电感识别方法
+        recognizer = DeviceRecognizer(
+            layer_mapping=layer_mapping,
+            inductor_method=inductor_method or InductorRecognitionMethod.HEURISTIC
+        )
         device_candidates = recognizer.recognize_devices(polygons, labels)
 
         # 转换为DeviceInfo格式

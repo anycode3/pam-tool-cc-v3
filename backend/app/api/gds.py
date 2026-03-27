@@ -1,13 +1,30 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, HTTPException, UploadFile, File, status, Query
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from app.core.config import settings
 from app.schemas.gds import GDSParseRequest, GDSParseResponse, GDSLayerInfo
-from app.schemas.gds_mapping import GDSLayerMappingConfig
+from app.schemas.gds_mapping import GDSLayerMappingConfig, InductorRecognitionMethod
 from app.services.gds_parser import gds_parser_service
 
 router = APIRouter(prefix="/gds", tags=["GDS"])
+
+
+class InductorMethodEnum(str, Enum):
+    """电感识别方法枚举（API端点使用）"""
+    GEOMETRIC = "geometric"
+    TOPOLOGICAL = "topological"
+    HEURISTIC = "heuristic"
+
+
+def to_inductor_method(method: Optional[str]) -> Optional[InductorRecognitionMethod]:
+    """将字符串转换为电感识别方法枚举"""
+    if not method:
+        return None
+    try:
+        return InductorRecognitionMethod(method)
+    except ValueError:
+        return InductorRecognitionMethod.HEURISTIC
 
 
 # 支持的GDS文件后缀
@@ -223,12 +240,16 @@ async def list_all_layer_mappings():
 
 
 @router.post("/parse-with-mapping", response_model=GDSParseResponse)
-async def parse_gds_with_mapping(request: GDSParseRequest):
+async def parse_gds_with_mapping(
+    request: GDSParseRequest,
+    inductor_method: Optional[str] = Query(None, description="电感识别方法: geometric, topological, heuristic")
+):
     """
     使用图层映射解析GDS文件（识别器件类型和计算器件值）
 
     Args:
         request: GDS解析请求
+        inductor_method: 电感识别方法（可选）
 
     Returns:
         GDSParseResponse: 解析结果
@@ -245,12 +266,18 @@ async def parse_gds_with_mapping(request: GDSParseRequest):
                 message="未找到图层映射配置，请先设置图层映射"
             )
 
+        # 转换电感识别方法
+        method = to_inductor_method(inductor_method)
+        logger.info(f"使用电感识别方法: {method.value if method else 'default'}")
+
         # 使用图层映射解析
         result = gds_parser_service.parse_gds_file_with_mapping(
             request.file_name,
-            layer_mapping
+            layer_mapping,
+            inductor_method=method
         )
         return result
 
     except Exception as e:
+        logger.error(f"解析失败: {e}")
         raise HTTPException(status_code=500, detail=f"解析失败: {str(e)}")

@@ -1,5 +1,13 @@
 from pydantic import BaseModel
 from typing import Dict, Optional
+from enum import Enum
+
+
+class InductorRecognitionMethod(str, Enum):
+    """电感识别方法枚举"""
+    GEOMETRIC = "geometric"  # 几何模板匹配法
+    TOPOLOGICAL = "topological"  # 拋扑连接分析法
+    HEURISTIC = "heuristic"  # 启发式规则法
 
 
 class LayerMapping(BaseModel):
@@ -18,6 +26,7 @@ class GDSLayerMappingConfig(BaseModel):
     # 器件值计算参数（可选）
     resistor_sheet_resistance: Optional[float] = None  # 电阻方块电阻 (Ω/square)
     capacitor_plate_separation: Optional[float] = None  # 电容板间距 (μm)
+    inductor_method: Optional[InductorRecognitionMethod] = InductorRecognitionMethod.HEURISTIC  # 电感识别方法默认启发式
 
 
 class DeviceValue(BaseModel):
