@@ -78,7 +78,7 @@ function App() {
   });
 
   // 拖拽平滑处理（使用ref避免闭包问题）
-  const dragRef = React.useRef({
+  const dragRef = useRef({
     isDragging: false,
     startX: 0,
     startY: 0,
@@ -113,7 +113,7 @@ function App() {
         throw new Error(error.detail || '上传失败');
       }
 
-      const result = await response.json();
+      await response.json();
 
       // 获取图层信息
       const layersResponse = await fetch(`${API_BASE}/gds/layers/${file.name}`);
