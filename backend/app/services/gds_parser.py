@@ -228,7 +228,7 @@ class GDSParserService:
         """计算多个多边形的边界框"""
         all_points = []
         for poly in polygons:
-            all_points.extend(list(poly))
+            all_points.extend(poly.points.tolist())
 
         if not all_points:
             return {'min_x': 0, 'max_x': 0, 'min_y': 0, 'max_y': 0}
@@ -254,7 +254,7 @@ class GDSParserService:
             DeviceInfo: 设备信息
         """
         # 获取多边形边界
-        coordinates = list(polygon)
+        coordinates = polygon.points.tolist()
         x_coords = [coord[0] for coord in coordinates]
         y_coords = [coord[1] for coord in coordinates]
 
@@ -329,7 +329,7 @@ class GDSParserService:
 
             for cell in library.cells:
                 for polygon in cell.polygons:
-                    coords = list(polygon)
+                    coords = polygon.points.tolist()
                     for coord in coords:
                         min_x = min(min_x, coord[0])
                         max_x = max(max_x, coord[0])
