@@ -241,7 +241,7 @@ class DeviceRecognizer:
 
     def _is_rectangular_shape(self, poly: Polygon) -> bool:
         """判断是否为矩形形状"""
-        points = poly.tolist()
+        points = list(poly)
         if len(points) != 4:
             return False
 
@@ -346,7 +346,7 @@ class DeviceRecognizer:
 
     def _get_bbox(self, poly: Polygon) -> Dict[str, float]:
         """获取多边形边界框"""
-        points = poly.tolist()
+        points = list(poly)
         x_coords = [p[0] for p in points]
         y_coords = [p[1] for p in points]
 
