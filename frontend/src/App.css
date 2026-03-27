@@ -406,3 +406,119 @@
 .info-text p {
   margin: 8px 0;
 }
+
+/* 视图工具栏 */
+.viewer-toolbar {
+  display: flex;
+  gap: 12px;
+  padding: 8px 16px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-btn {
+  padding: 6px 12px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover:not(:disabled) {
+  background: #334155;
+  color: #ffffff;
+}
+
+.toolbar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zoom-level {
+  min-width: 60px;
+  text-align: center;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+/* 图层控制 */
+.layer-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.toggle-all-btn {
+  padding: 6px 12px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.toggle-all-btn:hover {
+  background: #2563eb;
+}
+
+.layer-item {
+  padding: 8px 12px;
+  background: #0f172a;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.layer-item.visible {
+  border: 1px solid #3b82f6;
+}
+
+.layer-item.hidden {
+  opacity: 0.5;
+  border: 1px solid #334155;
+}
+
+.layer-item:hover {
+  background: #1e293b;
+}
+
+.layer-checkbox {
+  font-size: 16px;
+  font-weight: bold;
+  color: #3b82f6;
+  min-width: 24px;
+}
+
+.layer-hint {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #64748b;
+  text-align: center;
+}
+
+/* 多边形信息 */
+.polygon-info {
+  padding: 12px;
+  background: #0f172a;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}

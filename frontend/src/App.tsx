@@ -70,6 +70,22 @@ function App() {
     VA1: ''
   });
 
+  // 视图控制状态
+  const [viewState, setViewState] = useState({
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    isDragging: false,
+    lastX: 0,
+    lastY: 0
+  });
+
+  // 图层过滤
+  const [visibleLayers, setVisibleLayers] = useState<Set<number>>(new Set());
+
+  // 选中的多边形
+  const [selectedPolygon, setSelectedPolygon] = useState<string | null>(null);
+
   const API_BASE = 'http://localhost:8000';
 
   // 上传文件
@@ -351,6 +367,58 @@ function App() {
 
   const bounds = calculateBounds();
 
+  // 处理鼠标滚轮缩放
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    const newScale = Math.max(0.1, Math.min(10, viewState.scale * delta));
+    setViewState({ ...viewState, scale: newScale });
+  };
+
+  // 处理拖拽开始
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setViewState({ ...viewState, isDragging: true, lastX: e.clientX, lastY: e.clientY });
+  };
+
+  // 处理拖拽移动
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!viewState.isDragging) return;
+    const dx = e.clientX - viewState.lastX;
+    const dy = e.clientY - viewState.lastY;
+    setViewState({
+      ...viewState,
+      offsetX: viewState.offsetX + dx,
+      offsetY: viewState.offsetY + dy,
+      lastX: e.clientX,
+      lastY: e.clientY
+    });
+  };
+
+  // 处理拖拽结束
+  const handleMouseUp = () => {
+    setViewState({ ...viewState, isDragging: false });
+  };
+
+  // 切换图层可见性
+  const toggleLayerVisibility = (layerNumber: number) => {
+    const newVisibleLayers = new Set(visibleLayers);
+    if (newVisibleLayers.has(layerNumber)) {
+      newVisibleLayers.delete(layerNumber);
+    } else {
+      newVisibleLayers.add(layerNumber);
+    }
+    setVisibleLayers(newVisibleLayers);
+  };
+
+  // 全选/取消所有图层
+  const toggleAllLayers = () => {
+    if (visibleLayers.size === selectedFile?.layers.length) {
+      setVisibleLayers(new Set());
+    } else {
+      setVisibleLayers(new Set(selectedFile?.layers.map(l => l.layer_number) || []));
+    }
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -438,50 +506,97 @@ function App() {
 
               {/* GDS 显示区域 */}
               <div className="gds-viewer-container">
+                {/* 工具栏 */}
+                <div className="viewer-toolbar">
+                  <div className="toolbar-group">
+                    <button
+                      className="toolbar-btn"
+                      onClick={() => setViewState({ ...viewState, scale: viewState.scale * 0.9 })}
+                      disabled={viewState.scale <= 0.1}
+                      title="缩小"
+                    >
+                      −
+                    </button>
+                    <span className="zoom-level">{Math.round(viewState.scale * 100)}%</span>
+                    <button
+                      className="toolbar-btn"
+                      onClick={() => setViewState({ ...viewState, scale: viewState.scale * 1.1 })}
+                      disabled={viewState.scale >= 10}
+                      title="放大"
+                    >
+                      +
+                    </button>
+                    <button
+                      className="toolbar-btn"
+                      onClick={() => setViewState({ ...viewState, scale: 1, offsetX: 0, offsetY: 0 })}
+                      title="重置视图"
+                    >
+                      ⤢
+                    </button>
+                  </div>
+                </div>
+
                 <svg
                   width="100%"
                   height="100%"
                   viewBox={`${bounds.minX} ${bounds.minY} ${bounds.maxX - bounds.minX} ${bounds.maxY - bounds.minY}`}
+                  onWheel={handleWheel}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
                   style={{
                     background: '#0f172a',
                     border: '1px solid #334155',
-                    borderRadius: '8px'
+                    borderRadius: '8px',
+                    cursor: viewState.isDragging ? 'grabbing' : 'grab'
                   }}
                 >
-                  {/* 绘制图层和多边形 */}
-                  {selectedFile.layers.map((layer, layerIndex) => {
-                    const layerColor = getLayerColor(layer.layer_number);
-                    return (
-                      <g key={layer.layer_number} opacity="0.5">
-                        {/* 图层标签 */}
-                        <text
-                          x={bounds.minX + 10}
-                          y={bounds.minY + 20 + layerIndex * 20}
-                          fill="#64748b"
-                          fontSize="12"
-                          style={{ fontFamily: 'monospace' }}
-                        >
-                          Layer {layer.layer_number}: {layer.layer_name} ({layer.polygons.length} polygons)
-                        </text>
+                  <g
+                    transform={`translate(${viewState.offsetX}, ${viewState.offsetY}) scale(${viewState.scale})`}
+                    transform-origin="0 0"
+                  >
+                    {/* 绘制图层和多边形 */}
+                    {selectedFile.layers.map((layer, layerIndex) => {
+                      const layerColor = getLayerColor(layer.layer_number);
+                      const isVisible = visibleLayers.size === 0 || visibleLayers.has(layer.layer_number);
+                      return (
+                        <g key={layer.layer_number} opacity={isVisible ? 0.7 : 0.1}>
+                          {/* 图层标签 */}
+                          <text
+                            x={bounds.minX + 10}
+                            y={bounds.minY + 20 + layerIndex * 20}
+                            fill="#64748b"
+                            fontSize="12"
+                            style={{ fontFamily: 'monospace' }}
+                          >
+                            Layer {layer.layer_number}: {layer.layer_name} ({layer.polygons.length} polygons)
+                          </text>
 
-                        {/* 绘制多边形 */}
-                        {layer.polygons.map((polygon, polygonIndex) => (
-                          <polygon
-                            key={`${layerIndex}-${polygonIndex}`}
-                            points={polygon.points.map(p => `${p[0]},${p[1]}`).join(' ')}
-                            fill={layerColor}
-                            stroke={layerColor}
-                            strokeWidth="1"
-                            fillOpacity="0.3"
-                            strokeOpacity="0.7"
-                          />
-                        ))}
-                      </g>
-                    );
-                  })}
+                          {/* 绘制多边形 */}
+                          {layer.polygons.map((polygon, polygonIndex) => {
+                            const polygonKey = `${layer.layer_number}-${polygonIndex}`;
+                            const isSelected = selectedPolygon === polygonKey;
+                            return (
+                              <polygon
+                                key={polygonKey}
+                                points={polygon.points.map(p => `${p[0]},${p[1]}`).join(' ')}
+                                fill={layerColor}
+                                stroke={isSelected ? '#ffffff' : layerColor}
+                                strokeWidth={isSelected ? 3 : 1}
+                                fillOpacity={isSelected ? 0.5 : 0.3}
+                                strokeOpacity={isSelected ? 1 : 0.7}
+                                style={{ cursor: 'pointer' }}
+                                onClick={() => setSelectedPolygon(isSelected ? null : polygonKey)}
+                              />
+                            );
+                          })}
+                        </g>
+                      );
+                    })}
 
-                  {/* 绘制器件 */}
-                  {selectedFile.devices.map((device, index) => {
+                    {/* 绘制器件 */}
+                    {selectedFile.devices.map((device, index) => {
                     const color = getDeviceColor(device.device_type);
                     return (
                       <g key={index} style={{ cursor: 'pointer' }}>
@@ -645,15 +760,54 @@ function App() {
             {/* 图层信息 */}
             {selectedFile && selectedFile.layers.length > 0 && (
               <div className="panel-section">
-                <h3>图层信息</h3>
+                <h3>图层控制</h3>
+                <div className="layer-controls">
+                  <button
+                    className="toggle-all-btn"
+                    onClick={toggleAllLayers}
+                  >
+                    {visibleLayers.size === selectedFile.layers.length ? '隐藏全部' : '显示全部'}
+                  </button>
+                </div>
                 <div className="layers-list">
-                  {selectedFile.layers.map((layer) => (
-                    <div key={layer.layer_number} className="layer-item">
-                      <span className="layer-number">Layer {layer.layer_number}</span>
-                      <span className="layer-name">{layer.layer_name}</span>
-                      <span className="layer-poly">{layer.polygon_count} 多边形</span>
-                    </div>
-                  ))}
+                  {selectedFile.layers.map((layer) => {
+                    const isVisible = visibleLayers.size === 0 || visibleLayers.has(layer.layer_number);
+                    return (
+                      <div
+                        key={layer.layer_number}
+                        className={`layer-item ${isVisible ? 'visible' : 'hidden'}`}
+                        onClick={() => toggleLayerVisibility(layer.layer_number)}
+                      >
+                        <span className="layer-checkbox">
+                          {isVisible ? '✓' : '○'}
+                        </span>
+                        <span className="layer-number">Layer {layer.layer_number}</span>
+                        <span className="layer-name">{layer.layer_name}</span>
+                        <span className="layer-poly">{layer.polygon_count} 多边形</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {visibleLayers.size > 0 && (
+                  <p className="layer-hint">
+                    已选择 {visibleLayers.size} / {selectedFile.layers.length} 个图层
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 选中多边形信息 */}
+            {selectedPolygon && (
+              <div className="panel-section">
+                <h3>多边形信息</h3>
+                <div className="polygon-info">
+                  <p><strong>ID:</strong> {selectedPolygon}</p>
+                  <button
+                    className="action-btn"
+                    onClick={() => setSelectedPolygon(null)}
+                  >
+                    取消选择
+                  </button>
                 </div>
               </div>
             )}
