@@ -28,9 +28,17 @@ class GDSParseResponse(BaseModel):
     message: Optional[str] = None
 
 
+class PolygonData(BaseModel):
+    """多边形数据模型"""
+    points: List[List[float]]  # 坐标点列表 [[x1, y1], [x2, y2], ...]
+    layer: int
+    datatype: int
+
+
 class GDSLayerInfo(BaseModel):
     """图层信息模型"""
     layer_number: int
     layer_name: str
     datatype: int
     polygon_count: int
+    polygons: List[PolygonData] = []  # 该图层的所有多边形

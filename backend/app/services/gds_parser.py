@@ -6,7 +6,7 @@ from pathlib import Path
 import gdstk
 
 from app.core.config import settings
-from app.schemas.gds import DeviceInfo, GDSParseResponse, GDSLayerInfo
+from app.schemas.gds import DeviceInfo, GDSParseResponse, GDSLayerInfo, PolygonData
 from app.schemas.gds_mapping import LayerMapping
 from app.services.device_recognizer import DeviceRecognizer, DeviceCandidate
 from app.services.layer_mapping_storage import LayerMappingStorage
@@ -376,9 +376,18 @@ class GDSParserService:
                             layer_number=polygon.layer,
                             layer_name=f"Layer_{polygon.layer}",
                             datatype=polygon.datatype,
-                            polygon_count=0
+                            polygon_count=0,
+                            polygons=[]
                         )
                     layer_info_dict[polygon.layer].polygon_count += 1
+
+                    # 添加多边形数据
+                    polygon_data = PolygonData(
+                        points=polygon.points.tolist(),
+                        layer=polygon.layer,
+                        datatype=polygon.datatype
+                    )
+                    layer_info_dict[polygon.layer].polygons.append(polygon_data)
 
             return list(layer_info_dict.values())
 

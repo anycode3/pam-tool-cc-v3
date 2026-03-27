@@ -1,11 +1,18 @@
 import { useState } from 'react';
 import './App.css';
 
+interface PolygonData {
+  points: number[][];
+  layer: number;
+  datatype: number;
+}
+
 interface Layer {
   layer_number: number;
   layer_name: string;
   datatype: number;
   polygon_count: number;
+  polygons: PolygonData[];
 }
 
 interface Device {
@@ -291,29 +298,55 @@ function App() {
     return colors[deviceType] || '#9ca3af';
   };
 
+  const getLayerColor = (layerNumber: number) => {
+    const colors = ['#3b82f6', '#10b981', '#ef4444', '#6b7280', '#64748b', '#8b5cf6', '#06b6d4', '#f59e0b'];
+    return colors[layerNumber % colors.length];
+  };
+
   const calculateBounds = () => {
-    if (!selectedFile || selectedFile.devices.length === 0) {
-      return selectedFile?.geometry ? {
+    if (!selectedFile) {
+      return { minX: 0, maxX: 1000, minY: 0, maxY: 1000 };
+    }
+
+    // 优先使用几何信息
+    if (selectedFile.geometry) {
+      return {
         minX: selectedFile.geometry.min_x,
         maxX: selectedFile.geometry.max_x,
         minY: selectedFile.geometry.min_y,
         maxY: selectedFile.geometry.max_y
-      } : { minX: 0, maxX: 1000, minY: 0, maxY: 1000 };
+      };
     }
 
+    // 如果没有几何信息，从多边形计算边界
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
 
-    selectedFile.devices.forEach(d => {
-      minX = Math.min(minX, d.x);
-      maxX = Math.max(maxX, d.x + d.width);
-      minY = Math.min(minY, d.y);
-      maxY = Math.max(maxY, d.y + d.height);
+    // 从图层的多边形计算
+    selectedFile.layers.forEach(layer => {
+      layer.polygons.forEach(polygon => {
+        polygon.points.forEach(point => {
+          minX = Math.min(minX, point[0]);
+          maxX = Math.max(maxX, point[0]);
+          minY = Math.min(minY, point[1]);
+          maxY = Math.max(maxY, point[1]);
+        });
+      });
     });
 
-    return { minX, maxX, minY, maxY };
+    // 如果没有多边形，从器件计算
+    if (minX === Infinity) {
+      selectedFile.devices.forEach(d => {
+        minX = Math.min(minX, d.x);
+        maxX = Math.max(maxX, d.x + d.width);
+        minY = Math.min(minY, d.y);
+        maxY = Math.max(maxY, d.y + d.height);
+      });
+    }
+
+    return minX === Infinity ? { minX: 0, maxX: 1000, minY: 0, maxY: 1000 } : { minX, maxX, minY, maxY };
   };
 
   const bounds = calculateBounds();
@@ -415,20 +448,37 @@ function App() {
                     borderRadius: '8px'
                   }}
                 >
-                  {/* 绘制图层 */}
-                  {selectedFile.layers.map((layer, index) => (
-                    <g key={layer.layer_number} opacity="0.3">
-                      <text
-                        x={bounds.minX + 10}
-                        y={bounds.minY + 20 + index * 20}
-                        fill="#64748b"
-                        fontSize="12"
-                        style={{ fontFamily: 'monospace' }}
-                      >
-                        Layer {layer.layer_number}: {layer.layer_name}
-                      </text>
-                    </g>
-                  ))}
+                  {/* 绘制图层和多边形 */}
+                  {selectedFile.layers.map((layer, layerIndex) => {
+                    const layerColor = getLayerColor(layer.layer_number);
+                    return (
+                      <g key={layer.layer_number} opacity="0.5">
+                        {/* 图层标签 */}
+                        <text
+                          x={bounds.minX + 10}
+                          y={bounds.minY + 20 + layerIndex * 20}
+                          fill="#64748b"
+                          fontSize="12"
+                          style={{ fontFamily: 'monospace' }}
+                        >
+                          Layer {layer.layer_number}: {layer.layer_name} ({layer.polygons.length} polygons)
+                        </text>
+
+                        {/* 绘制多边形 */}
+                        {layer.polygons.map((polygon, polygonIndex) => (
+                          <polygon
+                            key={`${layerIndex}-${polygonIndex}`}
+                            points={polygon.points.map(p => `${p[0]},${p[1]}`).join(' ')}
+                            fill={layerColor}
+                            stroke={layerColor}
+                            strokeWidth="1"
+                            fillOpacity="0.3"
+                            strokeOpacity="0.7"
+                          />
+                        ))}
+                      </g>
+                    );
+                  })}
 
                   {/* 绘制器件 */}
                   {selectedFile.devices.map((device, index) => {
