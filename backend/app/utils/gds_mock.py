@@ -84,11 +84,6 @@ class GDSMockModule:
     Label = Label
     Library = Library
 
-    @staticmethod
-    def read(filename):
-        """Mock read method - gdstk.read() convenience function"""
-        return Library.read(filename)
-
 
 # 注册到 sys.modules
 gdstk = GDSMockModule()

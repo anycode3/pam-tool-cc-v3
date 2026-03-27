@@ -56,10 +56,7 @@ class GDSParserService:
                 )
 
             # 使用gdstk读取GDS文件
-            if _use_real_gdstk:
-                library = gdstk.Library.read(file_path)
-            else:
-                library = gdstk.read(file_path)
+            library = gdstk.Library.read(file_path)
 
             # 使用图层映射提取设备信息
             devices = self.extract_devices_with_mapping(library, layer_mapping)
@@ -105,10 +102,7 @@ class GDSParserService:
                 )
 
             # 使用gdstk读取GDS文件
-            if _use_real_gdstk:
-                library = gdstk.Library.read(file_path)
-            else:
-                library = gdstk.read(file_path)
+            library = gdstk.Library.read(file_path)
 
             # 提取设备信息
             devices = self._extract_devices(library)
@@ -334,10 +328,7 @@ class GDSParserService:
             if not file_path.exists():
                 raise FileNotFoundError(f"文件不存在: {file_name}")
 
-            if _use_real_gdstk:
-                library = gdstk.Library.read(file_path)
-            else:
-                library = gdstk.read(file_path)
+            library = gdstk.Library.read(file_path)
 
             # 计算全局边界框
             min_x, max_x, min_y, max_y = 0, 0, 0, 0
@@ -381,10 +372,7 @@ class GDSParserService:
             if not file_path.exists():
                 return []
 
-            if _use_real_gdstk:
-                library = gdstk.Library.read(file_path)
-            else:
-                library = gdstk.read(file_path)
+            library = gdstk.Library.read(file_path)
             layer_info_dict: Dict[int, GDSLayerInfo] = {}
 
             for cell in library.cells:
