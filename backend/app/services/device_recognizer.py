@@ -5,10 +5,7 @@ from dataclasses import dataclass
 
 from app.schemas.gds_mapping import LayerMapping, GDSLayerMappingConfig, DeviceValue
 
-try:
-    from gdstk import Polygon, Label
-except ImportError:
-    from app.utils.gds_mock import Polygon, Label
+from gdstk import Polygon, Label
 
 logger = logging.getLogger(__name__)
 
