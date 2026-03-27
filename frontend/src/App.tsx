@@ -625,6 +625,7 @@ function App() {
                       </g>
                     );
                   })}
+                  </g>
                 </svg>
               </div>
             </div>
