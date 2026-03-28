@@ -102,8 +102,14 @@ class InductorRecognizer:
 
         candidates = []
 
-        # 检测同心结构
+        # 检测同心结构，使用已处理标记避免重复
+        processed_segs = set()
+
         for seg1 in me1_segments:
+            # 跳过已处理的段
+            if id(seg1.polygon) in processed_segs:
+                continue
+
             # 查找空间邻近的ME2段
             nearby_segs = self._query_spatial_index(me2_spatial, seg1.center, radius=seg1.width * 2)
 
@@ -115,13 +121,17 @@ class InductorRecognizer:
                 # 检测跨层连接
                 paired_segments = self._find_cross_layer_pairs(cluster, me1_segments, me2_segments)
 
-                if len(paired_segments) >= 2:  # 至少1圈
+                if len(paired_segments) >= 1:  # 至少0.5圈
                     # 计算电感值
                     inductor = self._create_inductor(
                         paired_segments,
                         method="geometric"
                     )
                     candidates.append(inductor)
+
+                    # 标记已处理的段
+                    for seg in cluster:
+                        processed_segs.add(id(seg.polygon))
 
         return candidates
 
@@ -589,12 +599,12 @@ class InductorRecognizer:
         me1_concentric = self._find_concentric_rectangles(me1_segments)
         me2_concentric = self._find_concentric_rectangles(me2_segments)
 
-        # 规则2: 螺旋完整性验证
-        if len(me1_concentric) >= 2 and len(me2_concentric) >= 2:
+        # 规则2: 螺旋完整性验证 - 降低阈值
+        if len(me1_concentric) >= 1 and len(me2_concentric) >= 1:
             # 规则3: 层间耦合验证
             paired = self._verify_layer_coupling(me1_concentric, me2_concentric)
 
-            if len(paired) >= 2:  # 至少1圈
+            if len(paired) >= 1:  # 至少0.5圈
                 # 创建电感
                 inductor = self._create_inductor(paired, method="heuristic")
                 candidates.append(inductor)
@@ -677,7 +687,7 @@ class InductorRecognizer:
         me2_sorted = sorted(me2_segments, key=lambda s: s.area)
 
         # 找面积相似的配对
-        for i in range(min(len(me1_sorted) - 1, len(me2_sorted) - 1)):
+        for i in range(min(len(me1_sorted), len(me2_sorted))):
             seg1 = me1_sorted[i]
             seg2 = me2_sorted[i]
 
