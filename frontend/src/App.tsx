@@ -326,7 +326,8 @@ function App() {
     return colors[layerNumber % colors.length];
   };
 
-  const calculateBounds = () => {
+  // 在函数内部计算边界
+  const getBounds = () => {
     if (!selectedFile) {
       return { minX: 0, maxX: 1000, minY: 0, maxY: 1000 };
     }
@@ -372,20 +373,19 @@ function App() {
     return minX === Infinity ? { minX: 0, maxX: 1000, minY: 0, maxY: 1000 } : { minX, maxX, minY, maxY };
   };
 
-  const bounds = calculateBounds();
+  const bounds = getBounds();
 
-  // 初始化视图边界 - 只在selectedFile变化时执行
+  // 初始化视图边界 - 只在selectedFile.id变化时执行
   React.useEffect(() => {
-    if (selectedFile) {
-      const width = bounds.maxX - bounds.minX;
-      const height = bounds.maxY - bounds.minY;
-      setViewState({
-        viewX: bounds.minX,
-        viewY: bounds.minY,
-        viewWidth: width || 1000,
-        viewHeight: height || 1000,
-      });
-    }
+    const currentBounds = getBounds();
+    const width = currentBounds.maxX - currentBounds.minX;
+    const height = currentBounds.maxY - currentBounds.minY;
+    setViewState({
+      viewX: currentBounds.minX,
+      viewY: currentBounds.minY,
+      viewWidth: width || 1000,
+      viewHeight: height || 1000,
+    });
   }, [selectedFile?.id]);
 
   // 处理鼠标滚轮缩放
@@ -406,11 +406,12 @@ function App() {
 
   // 重置视图
   const handleResetView = () => {
-    const width = bounds.maxX - bounds.minX;
-    const height = bounds.maxY - bounds.minY;
+    const currentBounds = getBounds();
+    const width = currentBounds.maxX - currentBounds.minX;
+    const height = currentBounds.maxY - currentBounds.minY;
     setViewState({
-      viewX: bounds.minX,
-      viewY: bounds.minY,
+      viewX: currentBounds.minX,
+      viewY: currentBounds.minY,
       viewWidth: width || 1000,
       viewHeight: height || 1000,
     });
@@ -647,8 +648,8 @@ function App() {
                         <g key={layer.layer_number} opacity={isVisible ? 0.7 : 0.1}>
                           {/* 图层标签 */}
                           <text
-                            x={bounds.minX + 10}
-                            y={bounds.minY + 20 + layerIndex * 20}
+                            x={getBounds().minX + 10}
+                            y={getBounds().minY + 20 + layerIndex * 20}
                             fill="#64748b"
                             fontSize="12"
                             style={{ fontFamily: 'monospace' }}
