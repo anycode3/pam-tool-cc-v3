@@ -374,7 +374,7 @@ function App() {
 
   const bounds = calculateBounds();
 
-  // 初始化视图边界
+  // 初始化视图边界 - 只在selectedFile变化时执行
   React.useEffect(() => {
     if (selectedFile) {
       const width = bounds.maxX - bounds.minX;
@@ -386,7 +386,7 @@ function App() {
         viewHeight: height || 1000,
       });
     }
-  }, [selectedFile]);
+  }, [selectedFile?.id]);
 
   // 处理鼠标滚轮缩放
   const handleWheel = (e: React.WheelEvent) => {
