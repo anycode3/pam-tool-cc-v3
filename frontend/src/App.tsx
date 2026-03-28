@@ -70,20 +70,21 @@ function App() {
     VA1: ''
   });
 
-  // 视图控制状态
+  // 视图控制状态（使用viewBox实现缩放和平移）
   const [viewState, setViewState] = useState({
-    scale: 1,
-    offsetX: 0,
-    offsetY: 0,
+    viewX: 0,
+    viewY: 0,
+    viewWidth: 1000,
+    viewHeight: 1000,
   });
 
-  // 拖拽平滑处理（使用ref避免闭包问题）
+  // 拖拽状态
   const dragRef = useRef({
     isDragging: false,
     startX: 0,
     startY: 0,
-    currentOffsetX: 0,
-    currentOffsetY: 0
+    startViewX: 0,
+    startViewY: 0
   });
 
   // 图层过滤
@@ -373,18 +374,47 @@ function App() {
 
   const bounds = calculateBounds();
 
+  // 初始化视图边界
+  React.useEffect(() => {
+    if (selectedFile) {
+      const width = bounds.maxX - bounds.minX;
+      const height = bounds.maxY - bounds.minY;
+      setViewState({
+        viewX: bounds.minX,
+        viewY: bounds.minY,
+        viewWidth: width || 1000,
+        viewHeight: height || 1000,
+      });
+    }
+  }, [selectedFile]);
+
   // 处理鼠标滚轮缩放
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.max(0.1, Math.min(10, viewState.scale * delta));
-    setViewState({ ...viewState, scale: newScale });
+    const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
+    const centerX = viewState.viewX + viewState.viewWidth / 2;
+    const centerY = viewState.viewY + viewState.viewHeight / 2;
+    const newWidth = Math.max(100, viewState.viewWidth * zoomFactor);
+    const newHeight = Math.max(100, viewState.viewHeight * zoomFactor);
+    setViewState({
+      viewX: centerX - newWidth / 2,
+      viewY: centerY - newHeight / 2,
+      viewWidth: newWidth,
+      viewHeight: newHeight,
+    });
   };
 
   // 重置视图
   const handleResetView = () => {
-    setViewState({ scale: 1, offsetX: 0, offsetY: 0 });
-    dragRef.current = { isDragging: false, startX: 0, startY: 0, currentOffsetX: 0, currentOffsetY: 0 };
+    const width = bounds.maxX - bounds.minX;
+    const height = bounds.maxY - bounds.minY;
+    setViewState({
+      viewX: bounds.minX,
+      viewY: bounds.minY,
+      viewWidth: width || 1000,
+      viewHeight: height || 1000,
+    });
+    dragRef.current = { isDragging: false, startX: 0, startY: 0, startViewX: 0, startViewY: 0 };
   };
 
   // 处理拖拽开始
@@ -393,8 +423,8 @@ function App() {
       isDragging: true,
       startX: e.clientX,
       startY: e.clientY,
-      currentOffsetX: viewState.offsetX,
-      currentOffsetY: viewState.offsetY
+      startViewX: viewState.viewX,
+      startViewY: viewState.viewY
     };
   };
 
@@ -405,27 +435,33 @@ function App() {
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
 
-    // 使用移动速度系数（0.3）使拖拽更平滑
-    const smoothFactor = 0.3;
-    const newOffsetX = dragRef.current.currentOffsetX + dx * smoothFactor;
-    const newOffsetY = dragRef.current.currentOffsetY + dy * smoothFactor;
+    // 计算SVG实际尺寸
+    const svgElement = e.currentTarget as HTMLElement;
+    const svgRect = svgElement.getBoundingClientRect();
+    const scaleX = viewState.viewWidth / svgRect.width;
+    const scaleY = viewState.viewHeight / svgRect.height;
+
+    // 移动viewBox（方向反转）
+    const newViewX = dragRef.current.startViewX - dx * scaleX;
+    const newViewY = dragRef.current.startViewY - dy * scaleY;
 
     setViewState({
-      ...viewState,
-      offsetX: newOffsetX,
-      offsetY: newOffsetY
+      viewX: newViewX,
+      viewY: newViewY,
+      viewWidth: viewState.viewWidth,
+      viewHeight: viewState.viewHeight
     });
   };
 
   // 处理拖拽结束
   const handleMouseUp = () => {
-    dragRef.current = { isDragging: false, startX: 0, startY: 0, currentOffsetX: 0, currentOffsetY: 0 };
+    dragRef.current = { isDragging: false, startX: 0, startY: 0, startViewX: 0, startViewY: 0 };
   };
 
   // 鼠标离开也结束拖拽
   const handleMouseLeave = () => {
     if (dragRef.current.isDragging) {
-      dragRef.current = { isDragging: false, startX: 0, startY: 0, currentOffsetX: 0, currentOffsetY: 0 };
+      dragRef.current = { isDragging: false, startX: 0, startY: 0, startViewX: 0, startViewY: 0 };
     }
   };
 
@@ -541,17 +577,37 @@ function App() {
                   <div className="toolbar-group">
                     <button
                       className="toolbar-btn"
-                      onClick={() => setViewState({ ...viewState, scale: viewState.scale * 0.9 })}
-                      disabled={viewState.scale <= 0.1}
+                      onClick={() => {
+                        const centerX = viewState.viewX + viewState.viewWidth / 2;
+                        const centerY = viewState.viewY + viewState.viewHeight / 2;
+                        const newWidth = viewState.viewWidth * 1.1;
+                        const newHeight = viewState.viewHeight * 1.1;
+                        setViewState({
+                          viewX: centerX - newWidth / 2,
+                          viewY: centerY - newHeight / 2,
+                          viewWidth: newWidth,
+                          viewHeight: newHeight,
+                        });
+                      }}
                       title="缩小"
                     >
                       −
                     </button>
-                    <span className="zoom-level">{Math.round(viewState.scale * 100)}%</span>
+                    <span className="zoom-level">{Math.round(1000 / viewState.viewWidth * 100)}%</span>
                     <button
                       className="toolbar-btn"
-                      onClick={() => setViewState({ ...viewState, scale: viewState.scale * 1.1 })}
-                      disabled={viewState.scale >= 10}
+                      onClick={() => {
+                        const centerX = viewState.viewX + viewState.viewWidth / 2;
+                        const centerY = viewState.viewY + viewState.viewHeight / 2;
+                        const newWidth = Math.max(100, viewState.viewWidth * 0.9);
+                        const newHeight = Math.max(100, viewState.viewHeight * 0.9);
+                        setViewState({
+                          viewX: centerX - newWidth / 2,
+                          viewY: centerY - newHeight / 2,
+                          viewWidth: newWidth,
+                          viewHeight: newHeight,
+                        });
+                      }}
                       title="放大"
                     >
                       +
@@ -569,7 +625,7 @@ function App() {
                 <svg
                   width="100%"
                   height="100%"
-                  viewBox={`${bounds.minX} ${bounds.minY} ${bounds.maxX - bounds.minX} ${bounds.maxY - bounds.minY}`}
+                  viewBox={`${viewState.viewX} ${viewState.viewY} ${viewState.viewWidth} ${viewState.viewHeight}`}
                   onWheel={handleWheel}
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
@@ -582,10 +638,7 @@ function App() {
                     cursor: dragRef.current.isDragging ? 'grabbing' : 'grab'
                   }}
                 >
-                  <g
-                    transform={`translate(${viewState.offsetX}, ${viewState.offsetY}) scale(${viewState.scale})`}
-                    transform-origin="0 0"
-                  >
+                  <g>
                     {/* 绘制图层和多边形 */}
                     {selectedFile.layers.map((layer, layerIndex) => {
                       const layerColor = getLayerColor(layer.layer_number);
