@@ -81,11 +81,12 @@ class InductorRecognizer:
         """
         几何模板匹配法
 
-        策略：
+        策略：识别完整的同心螺旋结构
         1. 空间分块索引多边形
-        2. 质心聚类检测同心结构
-        3. 边界框嵌套验证
-        4. 跨层关联检测
+        2. 收集所有同心嵌套段
+        3. 分离ME1和ME2层
+        4. 跨层配对
+        5. 创建单一螺旋电感
         """
         logger.info("使用几何模板匹配法识别电感")
 
@@ -96,42 +97,59 @@ class InductorRecognizer:
         me1_segments = [self._to_segment(poly) for poly in polygons_by_layer.get(self.mapping.me1, [])]
         me2_segments = [self._to_segment(poly) for poly in polygons_by_layer.get(self.mapping.me2, [])]
 
+        if not me1_segments or not me2_segments:
+            return []
+
         # 空间索引构建
         me1_spatial = self._build_spatial_index(me1_segments)
         me2_spatial = self._build_spatial_index(me2_segments)
 
         candidates = []
 
-        # 检测同心结构，使用已处理标记避免重复
-        processed_segs = set()
+        # 收集所有同心嵌套的段
+        all_concentric_segs = []
+        processed = set()
 
         for seg1 in me1_segments:
-            # 跳过已处理的段
-            if id(seg1.polygon) in processed_segs:
+            if id(seg1.polygon) in processed:
                 continue
 
             # 查找空间邻近的ME2段
-            nearby_segs = self._query_spatial_index(me2_spatial, seg1.center, radius=seg1.width * 2)
+            nearby_segs = self._query_spatial_index(me2_spatial, seg1.center, radius=seg1.width * 3)
 
             # 质心聚类
-            cluster = self._cluster_segments([seg1] + nearby_segs)
+            cluster = [seg1] + nearby_segs
 
             # 边界框嵌套验证
             if self._is_nested_bounding_boxes(cluster):
-                # 检测跨层连接
-                paired_segments = self._find_cross_layer_pairs(cluster, me1_segments, me2_segments)
+                # 添加到同心集合
+                for seg in cluster:
+                    if id(seg.polygon) not in processed:
+                        all_concentric_segs.append(seg)
+                        processed.add(id(seg.polygon))
 
-                if len(paired_segments) >= 1:  # 至少0.5圈
-                    # 计算电感值
-                    inductor = self._create_inductor(
-                        paired_segments,
-                        method="geometric"
-                    )
-                    candidates.append(inductor)
+        if len(all_concentric_segs) < 2:
+            return candidates
 
-                    # 标记已处理的段
-                    for seg in cluster:
-                        processed_segs.add(id(seg.polygon))
+        # 分离ME1和ME2层
+        me1_concentric = [s for s in all_concentric_segs if s.layer == self.mapping.me1]
+        me2_concentric = [s for s in all_concentric_segs if s.layer == self.mapping.me2]
+
+        # 跨层配对
+        paired_segments = self._find_cross_layer_pairs(
+            all_concentric_segs,
+            me1_concentric,
+            me2_concentric
+        )
+
+        # 至少1圈（ME1和ME2各至少1个）
+        if len(paired_segments) >= 1:
+            # 计算电感值
+            inductor = self._create_inductor(
+                paired_segments,
+                method="geometric"
+            )
+            candidates.append(inductor)
 
         return candidates
 
@@ -580,10 +598,11 @@ class InductorRecognizer:
         """
         启发式规则法
 
-        策略：
-        1. 同心矩形检测
-        2. 螺旋完整性验证
-        3. 层间耦合验证
+        策略：识别完整的同心螺旋结构
+        1. 收集所有同心嵌套段
+        2. 分离ME1和ME2层
+        3. 跨层配对
+        4. 创建单一电感
         """
         logger.info("使用启发式规则法识别电感")
 
@@ -593,21 +612,37 @@ class InductorRecognizer:
         me1_segments = [self._to_segment(poly) for poly in polygons_by_layer.get(self.mapping.me1, [])]
         me2_segments = [self._to_segment(poly) for poly in polygons_by_layer.get(self.mapping.me2, [])]
 
+        if not me1_segments or not me2_segments:
+            return []
+
         candidates = []
 
-        # 规则1: 同心矩形检测
-        me1_concentric = self._find_concentric_rectangles(me1_segments)
-        me2_concentric = self._find_concentric_rectangles(me2_segments)
+        # 收集所有同心嵌套段
+        all_concentric = self._find_all_concentric_segs(me1_segments, me2_segments)
 
-        # 规则2: 螺旋完整性验证 - 降低阈值
-        if len(me1_concentric) >= 1 and len(me2_concentric) >= 1:
-            # 规则3: 层间耦合验证
-            paired = self._verify_layer_coupling(me1_concentric, me2_concentric)
+        if len(all_concentric) < 2:
+            return candidates
 
-            if len(paired) >= 1:  # 至少0.5圈
-                # 创建电感
-                inductor = self._create_inductor(paired, method="heuristic")
-                candidates.append(inductor)
+        # 直接从同心段创建配对
+        # 对于螺旋电感，将ME1和ME2段的质心相近的配对
+        me1_concentric = sorted([s for s in all_concentric if s.layer == self.mapping.me1], key=lambda s: s.area)
+        me2_concentric = sorted([s for s in all_concentric if s.layer == self.mapping.me2], key=lambda s: s.area)
+
+        # 按大小配对
+        paired = []
+        min_len = min(len(me1_concentric), len(me2_concentric))
+        for i in range(min_len):
+            seg1 = me1_concentric[i]
+            seg2 = me2_concentric[i]
+            # 检查质心距离
+            dist = self._euclidean_distance(seg1.center, seg2.center)
+            if dist < min(seg1.width, seg2.height):
+                paired.append((seg1, seg2))
+
+        # 至少1圈
+        if len(paired) >= 1:
+            inductor = self._create_inductor(paired, method="heuristic")
+            candidates.append(inductor)
 
         return candidates
 
@@ -664,6 +699,41 @@ class InductorRecognizer:
 
             if is_concentric:
                 concentric.append(current)
+
+        return concentric
+
+    def _find_all_concentric_segs(
+        self,
+        me1_segments: List['SpiralSegment'],
+        me2_segments: List['SpiralSegment']
+    ) -> List['SpiralSegment']:
+        """
+        收集所有同心嵌套的段
+
+        在ME1和ME2层中查找同心结构
+        """
+        all_segments = me1_segments + me2_segments
+
+        if not all_segments:
+            return []
+
+        # 按面积排序
+        sorted_segs = sorted(all_segments, key=lambda s: s.area)
+
+        concentric = []
+
+        # 计算平均质心
+        avg_center_x = sum(s.center[0] for s in sorted_segs) / len(sorted_segs)
+        avg_center_y = sum(s.center[1] for s in sorted_segs) / len(sorted_segs)
+
+        # 检查每个段
+        for seg in sorted_segs:
+            # 检查质心是否接近平均质心
+            dist = self._euclidean_distance(seg.center, (avg_center_x, avg_center_y))
+            threshold = min(seg.width, seg.height) / 2
+
+            if dist < threshold:
+                concentric.append(seg)
 
         return concentric
 
