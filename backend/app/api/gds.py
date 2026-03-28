@@ -1,3 +1,4 @@
+from enum import Enum
 from fastapi import APIRouter, HTTPException, UploadFile, File, status, Query
 from pathlib import Path
 from typing import List, Optional
